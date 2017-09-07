@@ -48,7 +48,7 @@ rule Final:
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
 	shell: """
 	############################
-	touch {output}
+	#touch {output}
 	############################
 	"""
 	
