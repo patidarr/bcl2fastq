@@ -67,8 +67,15 @@ rule Merge:
 	R1=`find {wildcards.run}/Unaligned_patidar/ -name "{wildcards.library}*_R1_*gz*" | tr '\\n' ' '`
 	R2=`find {wildcards.run}/Unaligned_patidar/ -name "{wildcards.library}*_R2_*gz*" | tr '\\n' ' '`
 
-	/bin/zcat ${{R1}} |gzip >{wildcards.run}/Unaligned_patidar/Sample_{wildcards.library}_{wildcards.FCID}/Sample_{wildcards.library}_{wildcards.FCID}_R1.fastq.gz
-	/bin/zcat ${{R2}} |gzip >{wildcards.run}/Unaligned_patidar/Sample_{wildcards.library}_{wildcards.FCID}/Sample_{wildcards.library}_{wildcards.FCID}_R2.fastq.gz
+	count=`find {wildcards.run}/Unaligned_patidar/ -name "{wildcards.library}*_R1_*gz*" |wc -l`
+	if [ ${{count}} >1 ]; then
+		/bin/zcat ${{R1}} |gzip >{output.R1} &
+		/bin/zcat ${{R2}} |gzip >{output.R2} &
+	else
+		mv ${{R1}} {output.R1}
+		mv ${{R2}} {output.R2}
+	fi
+	wait
 	############################
 	"""	
 ###########################################################################
