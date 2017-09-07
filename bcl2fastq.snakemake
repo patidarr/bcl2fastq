@@ -11,7 +11,7 @@ TARGET=os.environ['TARGET']
 # Snakemake Base location
 shell.prefix("""
 #PBS -S /bin/bash
-source /etc/profile.d/modules.sh
+source /etc/prolibrary.d/modules.sh
 module load snakemake
 set -e -o pipefail
 sleep 20s
@@ -20,11 +20,11 @@ path=TARGET.split("/")
 PATH=os.path.dirname(TARGET)
 FCID=path[-2]
 onstart:
-	shell("ssh fr-s-hpc-head-1 \"echo 'bcl2fastq conversion started {FCID}| mutt -s 'bcl2fastq status ' `whoami`@mail.nih.gov \"")
+	shell("echo 'bcl2fastq conversion started {FCID} '| mutt -s 'bcl2fastq status ' `whoami`@mail.nih.gov ")
 onerror:
-	shell("ssh fr-s-hpc-head-1 \"echo 'bcl2fastq pipeline failed on {FCID}|mutt -s ' bcl2fastq status' `whoami`@mail.nih.gov  \"")
+	shell("echo 'bcl2fastq pipeline failed on {FCID} '|mutt -s ' bcl2fastq status' `whoami`@mail.nih.gov ")
 onsuccess:
-	shell("ssh fr-s-hpc-head-1 \"echo 'bcl2fastq pipeline finished successfully on {FCID} |mutt -s ' bcl2fastq status' `whoami`@mail.nih.gov  \"")
+	shell("echo 'bcl2fastq pipeline finished successfully on {FCID} ' |mutt -s ' bcl2fastq status' `whoami`@mail.nih.gov  ")
 
 f = open(PATH+"/SampleSheet.csv", 'r')
 FCName=FCID.split("_")
@@ -36,8 +36,9 @@ for line in f:
 		sampleID    =column.index('Sample_ID')
 		for line in f:
 			column = line.split(",")
-			TARGET += [PATH+"/Unaligned/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
-TARGET +=[PATH+"/Unaligned/Sample_Undetermined_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
+			TARGET += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
+			TARGET += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R2.fastq.gz"]
+TARGET +=[PATH+"/Unaligned_patidar/Sample_Undetermined_"+FCName+"/Sample_Undetermined_"+FCName+"_R2.fastq.gz"]
 
 rule Final:
 	input: TARGET
@@ -53,16 +54,21 @@ rule Final:
 	
 rule Merge:
 	input:
-		"{run}/Unaligned/Reports/html/tree.html",
+		"{run}/Unaligned_patidar/Reports/html/tree.html",
 		"{run}/SampleSheet.csv"
 	output:
-		"{run}/Unaligned/{sample}",
+		R1="{run}/Unaligned_patidar/Sample_{library}_{FCID}/Sample_{library}_{FCID}_R1.fastq.gz",
+		R2="{run}/Unaligned_patidar/Sample_{library}_{FCID}/Sample_{library}_{FCID}_R2.fastq.gz",
 	params:
 		rulename = "merge",
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
 	shell: """
 	############################
-	touch {output}	
+	R1=`find {wildcards.run}/Unaligned_patidar/ -name "{wildcards.library}*_R1_*gz*" | tr '\\n' ' '`
+	R2=`find {wildcards.run}/Unaligned_patidar/ -name "{wildcards.library}*_R2_*gz*" | tr '\\n' ' '`
+
+	/bin/zcat ${{R1}} |gzip >{wildcards.run}/Unaligned_patidar/Sample_{wildcards.library}_{wildcards.FCID}/Sample_{wildcards.library}_{wildcards.FCID}_R1.fastq.gz
+	/bin/zcat ${{R2}} |gzip >{wildcards.run}/Unaligned_patidar/Sample_{wildcards.library}_{wildcards.FCID}/Sample_{wildcards.library}_{wildcards.FCID}_R2.fastq.gz
 	############################
 	"""	
 ###########################################################################
@@ -70,7 +76,7 @@ rule BCL2FASTQ:
 	input:
 		"{run}/RTAComplete.txt"
 	output:
-		"{run}/Unaligned/Reports/html/tree.html"
+		"{run}/Unaligned_patidar/Reports/html/tree.html"
 	params:
 		rulename = "bcl2fastq",
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=72gb,ncpus=16"
@@ -80,7 +86,7 @@ rule BCL2FASTQ:
 	runName=`basename {wildcards.run}`
 	cp {wildcards.run}/SampleSheet.csv {wildcards.run}/SampleSheet_ori.csv
 	sed -i 's/~/_/g' {wildcards.run}/SampleSheet.csv
-	bcl2fastq -R {wildcards.run} -o {wildcards.run}/Unaligned/
-	chgrp -R "nci-frederick pcc all users" {wildcards.run}/Unaligned/
+	bcl2fastq -R {wildcards.run} -o {wildcards.run}/Unaligned_patidar/
+	chgrp -R "nci-frederick pcc all users" {wildcards.run}/Unaligned_patidar/
 	############################
 	"""
