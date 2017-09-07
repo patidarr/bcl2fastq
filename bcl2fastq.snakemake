@@ -1,0 +1,86 @@
+import itertools
+import os
+import collections
+import json
+import glob
+from snakemake.utils import R
+from snakemake.utils import min_version
+min_version("3.2")
+from snakemake.exceptions import MissingInputException
+TARGET=os.environ['TARGET']
+# Snakemake Base location
+shell.prefix("""
+#PBS -S /bin/bash
+source /etc/profile.d/modules.sh
+module load snakemake
+set -e -o pipefail
+sleep 20s
+""")
+path=TARGET.split("/")
+PATH=os.path.dirname(TARGET)
+FCID=path[-2]
+onstart:
+	shell("ssh fr-s-hpc-head-1 \"echo 'bcl2fastq conversion started {FCID}| mutt -s 'bcl2fastq status ' `whoami`@mail.nih.gov \"")
+onerror:
+	shell("ssh fr-s-hpc-head-1 \"echo 'bcl2fastq pipeline failed on {FCID}|mutt -s ' bcl2fastq status' `whoami`@mail.nih.gov  \"")
+onsuccess:
+	shell("ssh fr-s-hpc-head-1 \"echo 'bcl2fastq pipeline finished successfully on {FCID} |mutt -s ' bcl2fastq status' `whoami`@mail.nih.gov  \"")
+
+f = open(PATH+"/SampleSheet.csv", 'r')
+FCName=FCID.split("_")
+FCName=FCName[-1][1:]
+TARGET = []
+for line in f:
+	if 'Sample_ID' in line: 
+		column = line.split(",")
+		sampleID    =column.index('Sample_ID')
+		for line in f:
+			column = line.split(",")
+			TARGET += [PATH+"/Unaligned/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
+TARGET +=[PATH+"/Unaligned/Sample_Undetermined_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
+
+rule Final:
+	input: TARGET
+	output: "{run}/bcl2fastq.done"
+	params:
+		rulename = "final",
+		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
+	shell: """
+	############################
+	touch {output}
+	############################
+	"""
+	
+rule Merge:
+	input:
+		"{run}/Unaligned/Reports/html/tree.html",
+		"{run}/SampleSheet.csv"
+	output:
+		"{run}/Unaligned/{sample}",
+	params:
+		rulename = "merge",
+		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
+	shell: """
+	############################
+	touch {output}	
+	############################
+	"""	
+###########################################################################
+rule BCL2FASTQ:
+	input:
+		"{run}/RTAComplete.txt"
+	output:
+		"{run}/Unaligned/Reports/html/tree.html"
+	params:
+		rulename = "bcl2fastq",
+		batch    = "-l nodes=1,cput=100:00:00,pvmem=72gb,ncpus=16"
+	shell: """
+	############################
+	module load bcl2fastq2
+	runName=`basename {wildcards.run}`
+	cp {wildcards.run}/SampleSheet.csv {wildcards.run}/SampleSheet_ori.csv
+	sed -i 's/~/_/g' {wildcards.run}/SampleSheet.csv
+	bcl2fastq -R {wildcards.run} -o {wildcards.run}/Unaligned/
+	chgrp -R "nci-frederick pcc all users" {wildcards.run}/Unaligned/
+	############################
+	"""
