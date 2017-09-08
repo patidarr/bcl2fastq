@@ -2,11 +2,13 @@
 use strict;
 use warnings;
 # This is to automate:
-#	 bcl2fastq conversion on moab
+#	 bcl2fastq conversion on moab [Done]
 #	 change fastq file names as per required
-#	 count # reads in files
+#	 count # reads in files [Done]
 # 	 copy data to biowulf and any other location it should get copied over to
-# 	 send email notification
+# 	 send email notification [Done]
+my $LOG="/users/n2000747426/patidarr/log/";
+my $PIPELINE="/users/n2000747426/patidarr/bcl2fastq/";
 my $DIR = "/projects/lihc_hiseq/static/";
 opendir(my $DH, $DIR);
 while(readdir $DH){
@@ -15,12 +17,13 @@ while(readdir $DH){
 	if ($line =~ /(.*)_(.*)_(.*)_[A|B](.*)/){
 		if (-e "$DIR/$line/RTAComplete.txt"){
 			if (-e "$DIR/$line/Unaligned"){
+				# Already processed or job running.
 			}
 			elsif (-M "$DIR/$line/RTAComplete.txt" <5){
 				# Make a file we need to check the next time
 				# launch snakemake pipeline to launch bcl2fastq
 				# which should remove this file at the end
-				`/usr/local/bin/qsub -o /users/n2000747426/patidarr/bcl2fastq/log/ -e /users/n2000747426/patidarr/bcl2fastq/log/ -v target="$DIR/$line/bcl2fastq.done" /users/n2000747426/patidarr/bcl2fastq/submit_snakemake.sh`;
+				`/usr/local/bin/qsub -o $LOG -e $LOG -v target="$DIR/$line/bcl2fastq.done" $PIPELINE/submit_snakemake.sh`;
 			}
 		}
 		else{

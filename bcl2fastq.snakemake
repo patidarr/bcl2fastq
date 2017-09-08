@@ -19,6 +19,7 @@ from snakemake.exceptions import MissingInputException
 #
 
 TARGET=os.environ['TARGET']
+SOURCE=os.environ['SOURCE']
 # Snakemake Base location
 shell.prefix("""
 #PBS -S /bin/bash
@@ -62,7 +63,7 @@ rule Final:
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
 	shell: """
 	############################
-	/users/n2000747426/patidarr/bcl2fastq/makeReport.pl /projects/lihc_hiseq/static/ {FCID}/Unaligned_patidar {FCName} |mutt -e "my_hdr Content-Type: text/html" -s "bcl2fastq status on {FCID}" patidarr@mail.nih.gov 
+	${SOURCE}/makeReport.pl /projects/lihc_hiseq/static/ {FCID}/Unaligned_patidar {FCName} |mutt -e "my_hdr Content-Type: text/html" -s "bcl2fastq status on {FCID}" patidarr@mail.nih.gov 
 	############################
 	"""
 #################################
