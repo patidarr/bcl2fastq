@@ -7,6 +7,17 @@ from snakemake.utils import R
 from snakemake.utils import min_version
 min_version("3.2")
 from snakemake.exceptions import MissingInputException
+
+#Author:	Rajesh Patidar
+#Email:		patidarr
+#This is a pipeline to convert bcl files to fastq and send a report to a email list.
+# it also changes names Sample_SampleID_FCID nomenclature.
+# 
+# TODO
+#	parse original samplesheet to rename files.
+#	add _E _P _T _W _S in names to show type of data	
+#
+
 TARGET=os.environ['TARGET']
 # Snakemake Base location
 shell.prefix("""
@@ -14,7 +25,7 @@ shell.prefix("""
 source /etc/prolibrary.d/modules.sh
 module load snakemake
 set -e -o pipefail
-sleep 20s
+sleep 10s
 """)
 path=TARGET.split("/")
 PATH=os.path.dirname(TARGET)
@@ -23,8 +34,8 @@ onstart:
 	shell("echo 'bcl2fastq conversion started {FCID} '| mutt -s 'bcl2fastq status ' `whoami`@mail.nih.gov ")
 onerror:
 	shell("echo 'bcl2fastq pipeline failed on {FCID} '|mutt -s ' bcl2fastq status' `whoami`@mail.nih.gov ")
-onsuccess:
-	shell("echo 'bcl2fastq pipeline finished successfully on {FCID} ' |mutt -s ' bcl2fastq status' `whoami`@mail.nih.gov  ")
+#onsuccess:
+#	shell("echo 'bcl2fastq pipeline finished successfully on {FCID} ' |mutt -s ' bcl2fastq status' `whoami`@mail.nih.gov  ")
 
 f = open(PATH+"/SampleSheet.csv", 'r')
 FCName=FCID.split("_")
@@ -40,18 +51,24 @@ for line in f:
 			TARGET += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R2.fastq.gz"]
 TARGET +=[PATH+"/Unaligned_patidar/Sample_Undetermined_"+FCName+"/Sample_Undetermined_"+FCName+"_R2.fastq.gz"]
 
+
+#################################
+# Parse html pages and send report email.
+#################################
 rule Final:
 	input: TARGET
-	output: "{run}/bcl2fastq.done"
 	params:
 		rulename = "final",
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
 	shell: """
 	############################
-	#touch {output}
+	/users/n2000747426/patidarr/bcl2fastq/makeReport.pl /projects/lihc_hiseq/static/ {FCID}/Unaligned_patidar {FCName} |mutt -e "my_hdr Content-Type: text/html" -s "bcl2fastq status on {FCID}" patidarr@mail.nih.gov 
 	############################
 	"""
-	
+#################################
+# Merge fq files if same sample is loaded on to multiple lanes.
+# Also changes names to contain FCID in it.
+#################################
 rule Merge:
 	input:
 		"{run}/Unaligned_patidar/Reports/html/tree.html",
@@ -78,7 +95,9 @@ rule Merge:
 	wait
 	############################
 	"""	
-###########################################################################
+#################################
+# This is bcl2fastq conversion
+#################################
 rule BCL2FASTQ:
 	input:
 		"{run}/RTAComplete.txt"
