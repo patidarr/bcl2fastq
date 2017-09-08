@@ -3,9 +3,9 @@ use strict;
 use warnings;
 # This is to automate:
 #	 bcl2fastq conversion on moab [Done]
-#	 change fastq file names as per required
+#	 change fastq file names as per required [Done]
 #	 count # reads in files [Done]
-# 	 copy data to biowulf and any other location it should get copied over to
+# 	 copy data to biowulf and any other location it should get copied over to [Done]
 # 	 send email notification [Done]
 my $LOG="/users/n2000747426/patidarr/log/";
 my $PIPELINE="/users/n2000747426/patidarr/bcl2fastq/";

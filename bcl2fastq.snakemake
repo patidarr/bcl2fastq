@@ -4,8 +4,8 @@ import collections
 import json
 import glob
 from snakemake.utils import R
-from snakemake.utils import min_version
-min_version("3.2")
+#from snakemake.utils import min_vession
+#min_version("3.2")
 from snakemake.exceptions import MissingInputException
 
 #Author:	Rajesh Patidar
@@ -18,18 +18,19 @@ from snakemake.exceptions import MissingInputException
 #	add _E _P _T _W _S in names to show type of data	
 #
 
-TARGET=os.environ['TARGET']
+INPUT=os.environ['TARGET']
 SOURCE=os.environ['SOURCE']
 # Snakemake Base location
 shell.prefix("""
 #PBS -S /bin/bash
+#source /etc/profile.d/modules.sh
 source /etc/prolibrary.d/modules.sh
 module load snakemake
 set -e -o pipefail
 sleep 10s
 """)
-path=TARGET.split("/")
-PATH=os.path.dirname(TARGET)
+path=INPUT.split("/")
+PATH=os.path.dirname(INPUT)
 FCID=path[-2]
 onstart:
 	shell("echo 'bcl2fastq conversion started {FCID} '| mutt -s 'bcl2fastq status ' `whoami`@mail.nih.gov ")
@@ -42,17 +43,42 @@ f = open(PATH+"/SampleSheet.csv", 'r')
 FCName=FCID.split("_")
 FCName=FCName[-1][1:]
 TARGET = []
+SAMPLES =[]
+
+# Original Files names has will come from the SampleSheet.csv
+#
+#
+
 for line in f:
 	if 'Sample_ID' in line: 
 		column = line.split(",")
 		sampleID    =column.index('Sample_ID')
 		for line in f:
 			column = line.split(",")
-			TARGET += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
-			TARGET += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R2.fastq.gz"]
+			SAMPLES += [column[sampleID]]
+			TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Transfer.done"]
+			TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
+			TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R2.fastq.gz"]
 TARGET +=[PATH+"/Unaligned_patidar/Sample_Undetermined_"+FCName+"/Sample_Undetermined_"+FCName+"_R2.fastq.gz"]
 
-
+# For any sample where a ~ is  converted to _ in SampleSheet.csv we need to read SampleSheet_ori.csv to make fq files in original names.
+f = open(PATH+"/SampleSheet_ori.csv", 'r')
+for line in f:
+	if 'Sample_ID' in line:
+		column = line.split(",")
+		sampleID    =column.index('Sample_ID')
+		for line in f:
+			column = line.split(",")
+			if column[sampleID] not in SAMPLES:
+				oldname=column[sampleID].replace("~", "_")
+				# if a replacement happened the replaced names are not targets anymore
+				TARGET.remove(PATH+"/Unaligned_patidar/Sample_"+oldname+"_"+FCName+"/Sample_"+oldname+"_"+FCName+"_R1.fastq.gz")
+				TARGET.remove(PATH+"/Unaligned_patidar/Sample_"+oldname+"_"+FCName+"/Sample_"+oldname+"_"+FCName+"_R2.fastq.gz")
+				TARGET.remove(PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Transfer.done")
+				# Add correct files to target list
+				TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Transfer.done"]
+				TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
+				TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R2.fastq.gz"]
 #################################
 # Parse html pages and send report email.
 #################################
@@ -63,9 +89,30 @@ rule Final:
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
 	shell: """
 	############################
-	${SOURCE}/makeReport.pl /projects/lihc_hiseq/static/ {FCID}/Unaligned_patidar {FCName} |mutt -e "my_hdr Content-Type: text/html" -s "bcl2fastq status on {FCID}" patidarr@mail.nih.gov 
+	{SOURCE}/makeReport.pl /projects/lihc_hiseq/static/ {FCID}/Unaligned_patidar {FCName} |mutt -e "my_hdr Content-Type: text/html" -s "bcl2fastq status on {FCID}" patidarr@mail.nih.gov 
 	############################
 	"""
+#################################
+# Transfer data to biowulf
+#################################
+rule Transfer:
+	input:
+		"{run}/Unaligned_patidar/Sample_{library}_{FCID}/Sample_{library}_{FCID}_R1.fastq.gz"
+	output:
+		"{run}/Unaligned_patidar/Sample_{library}_{FCID}/Transfer.done"
+	params:
+		rulename = "Transfer",
+		batch    = "-l nodes=1,cput=100:00:00,pvmem=1gb,ncpus=1"
+	shell: """
+	############################
+	rsync -avzr {wildcards.run}/Unaligned_patidar/Sample_{wildcards.library}_{wildcards.FCID}/ helix.nih.gov:/data/MoCha/DATA/Sample_{wildcards.library}_{wildcards.FCID}/
+	ssh biowulf "chgrp -R MoCha /data/MoCha/DATA/Sample_{wildcards.library}_{wildcards.FCID}/"
+	ssh biowulf "chmod 755  /data/MoCha/DATA/Sample_{wildcards.library}_{wildcards.FCID}"
+	ssh biowulf "chmod 644  /data/MoCha/DATA/Sample_{wildcards.library}_{wildcards.FCID}/*"
+	touch {output}
+	############################
+	"""
+
 #################################
 # Merge fq files if same sample is loaded on to multiple lanes.
 # Also changes names to contain FCID in it.
@@ -82,8 +129,9 @@ rule Merge:
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
 	shell: """
 	############################
-	R1=`find {wildcards.run}/Unaligned_patidar/ -name "{wildcards.library}*_R1_*gz*" | tr '\\n' ' '`
-	R2=`find {wildcards.run}/Unaligned_patidar/ -name "{wildcards.library}*_R2_*gz*" | tr '\\n' ' '`
+	newlib=`echo {wildcards.library} |sed -e 's/~/_/g'`
+	R1=`find {wildcards.run}/Unaligned_patidar/ -name "${{newlib}}*_R1_*gz*" | tr '\\n' ' '`
+	R2=`find {wildcards.run}/Unaligned_patidar/ -name "${{newlib}}*_R2_*gz*" | tr '\\n' ' '`
 
 	count=`find {wildcards.run}/Unaligned_patidar/ -name "{wildcards.library}*_R1_*gz*" |wc -l`
 	if [ ${{count}} >1 ]; then

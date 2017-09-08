@@ -10,8 +10,7 @@ mkdir -p $log
 snakemake -r -p --snakefile $SOURCE/bcl2fastq.snakemake\
 	--nolock  --ri -k -p -T -r -j 3000\
 	--cluster "qsub -W umask=022 -V -o $log -e $log {params.batch}"\
-	--stats $log/${time}.stats\
-	$target >& $log/${time}.log
+	--stats $log/${time}.stats >& $log/${time}.log
 ####################################
 
 
