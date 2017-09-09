@@ -15,15 +15,16 @@ while(readdir $DH){
 	my $line = $_;
 	chomp $line;
 	if ($line =~ /(.*)_(.*)_(.*)_[A|B](.*)/){
+		my $FCID=$4;
 		if (-e "$DIR/$line/RTAComplete.txt"){
 			if (-e "$DIR/$line/Unaligned"){
 				# Already processed or job running.
 			}
-			elsif (-M "$DIR/$line/RTAComplete.txt" <5){
+			elsif (-M "$DIR/$line/RTAComplete.txt" <5 and -e "$DIR/$line/SampleSheet.csv"){
 				# Make a file we need to check the next time
 				# launch snakemake pipeline to launch bcl2fastq
 				# which should remove this file at the end
-				`/usr/local/bin/qsub -o $LOG -e $LOG -v target="$DIR/$line/bcl2fastq.done" $PIPELINE/submit_snakemake.sh`;
+				`/usr/local/bin/qsub -N $FCID -o $LOG -e $LOG -v target="$DIR/$line/bcl2fastq.done" $PIPELINE/submit_snakemake.sh`;
 			}
 		}
 		else{
