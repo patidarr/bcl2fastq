@@ -58,11 +58,11 @@ for line in f:
 			column = line.split(",")
 			SAMPLES += [column[sampleID]]
 			NAMES[column[sampleID]] = column[sampleName]
-			TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Transfer.done"]
-			TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
-			TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R2.fastq.gz"]
+			TARGET  += [PATH+"/Unaligned/Sample_"+column[sampleID]+"_"+FCName+"/Transfer.done"]
+			TARGET  += [PATH+"/Unaligned/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
+			TARGET  += [PATH+"/Unaligned/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R2.fastq.gz"]
 NAMES['Undetermined'] = 'Undetermined'
-TARGET +=[PATH+"/Unaligned_patidar/Sample_Undetermined_"+FCName+"/Sample_Undetermined_"+FCName+"_R2.fastq.gz"]
+TARGET +=[PATH+"/Unaligned/Sample_Undetermined_"+FCName+"/Sample_Undetermined_"+FCName+"_R2.fastq.gz"]
 # For any sample where a ~ is  converted to _ in SampleSheet.csv we need to read SampleSheet_ori.csv to make fq files in original names.
 f = open(PATH+"/SampleSheet_ori.csv", 'r')
 for line in f:
@@ -76,13 +76,13 @@ for line in f:
 				NAMES[column[sampleID]] = column[sampleName]
 				oldname=column[sampleID].replace("~", "_")
 				# if a replacement happened the replaced names are not targets anymore
-				TARGET.remove(PATH+"/Unaligned_patidar/Sample_"+oldname+"_"+FCName+"/Sample_"+oldname+"_"+FCName+"_R1.fastq.gz")
-				TARGET.remove(PATH+"/Unaligned_patidar/Sample_"+oldname+"_"+FCName+"/Sample_"+oldname+"_"+FCName+"_R2.fastq.gz")
-				TARGET.remove(PATH+"/Unaligned_patidar/Sample_"+oldname+"_"+FCName+"/Transfer.done")
+				TARGET.remove(PATH+"/Unaligned/Sample_"+oldname+"_"+FCName+"/Sample_"+oldname+"_"+FCName+"_R1.fastq.gz")
+				TARGET.remove(PATH+"/Unaligned/Sample_"+oldname+"_"+FCName+"/Sample_"+oldname+"_"+FCName+"_R2.fastq.gz")
+				TARGET.remove(PATH+"/Unaligned/Sample_"+oldname+"_"+FCName+"/Transfer.done")
 				# Add correct files to target list
-				TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Transfer.done"]
-				TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
-				TARGET  += [PATH+"/Unaligned_patidar/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R2.fastq.gz"]
+				TARGET  += [PATH+"/Unaligned/Sample_"+column[sampleID]+"_"+FCName+"/Transfer.done"]
+				TARGET  += [PATH+"/Unaligned/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R1.fastq.gz"]
+				TARGET  += [PATH+"/Unaligned/Sample_"+column[sampleID]+"_"+FCName+"/Sample_"+column[sampleID]+"_"+FCName+"_R2.fastq.gz"]
 #################################
 # Parse html pages and send report email.
 #################################
@@ -93,7 +93,7 @@ rule Final:
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
 	shell: """
 	############################
-	{SOURCE}/makeReport.pl /projects/lihc_hiseq/static/ {FCID}/Unaligned_patidar {FCName} |mutt -e "my_hdr Content-Type: text/html" -s "bcl2fastq status on {FCID}" patidarr@mail.nih.gov 
+	{SOURCE}/makeReport.pl /projects/lihc_hiseq/static/ {FCID}/Unaligned {FCName} |mutt -e "my_hdr Content-Type: text/html" -s "bcl2fastq status on {FCID}" patidarr@mail.nih.gov 
 	############################
 	"""
 #################################
@@ -101,15 +101,15 @@ rule Final:
 #################################
 rule Transfer:
 	input:
-		"{run}/Unaligned_patidar/Sample_{library}_{FCID}/Sample_{library}_{FCID}_R1.fastq.gz"
+		"{run}/Unaligned/Sample_{library}_{FCID}/Sample_{library}_{FCID}_R1.fastq.gz"
 	output:
-		"{run}/Unaligned_patidar/Sample_{library}_{FCID}/Transfer.done"
+		"{run}/Unaligned/Sample_{library}_{FCID}/Transfer.done"
 	params:
 		rulename = "Transfer",
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=1gb,ncpus=1"
 	shell: """
 	############################
-	rsync -avzr {wildcards.run}/Unaligned_patidar/Sample_{wildcards.library}_{wildcards.FCID}/ helix.nih.gov:/data/MoCha/DATA/Sample_{wildcards.library}_{wildcards.FCID}/
+	rsync -avzr {wildcards.run}/Unaligned/Sample_{wildcards.library}_{wildcards.FCID}/ helix.nih.gov:/data/MoCha/DATA/Sample_{wildcards.library}_{wildcards.FCID}/
 	ssh biowulf "chgrp -R MoCha /data/MoCha/DATA/Sample_{wildcards.library}_{wildcards.FCID}/"
 	ssh biowulf "chmod 755  /data/MoCha/DATA/Sample_{wildcards.library}_{wildcards.FCID}"
 	ssh biowulf "chmod 644  /data/MoCha/DATA/Sample_{wildcards.library}_{wildcards.FCID}/*"
@@ -123,11 +123,11 @@ rule Transfer:
 #################################
 rule Merge:
 	input:
-		"{run}/Unaligned_patidar/Reports/html/tree.html",
+		"{run}/Unaligned/Reports/html/tree.html",
 		"{run}/SampleSheet.csv"
 	output:
-		R1="{run}/Unaligned_patidar/Sample_{library}_{FCID}/Sample_{library}_{FCID}_R1.fastq.gz",
-		R2="{run}/Unaligned_patidar/Sample_{library}_{FCID}/Sample_{library}_{FCID}_R2.fastq.gz",
+		R1="{run}/Unaligned/Sample_{library}_{FCID}/Sample_{library}_{FCID}_R1.fastq.gz",
+		R2="{run}/Unaligned/Sample_{library}_{FCID}/Sample_{library}_{FCID}_R2.fastq.gz",
 	params:
 		rulename = "merge",
 		name     = lambda wildcards: NAMES[wildcards.library],
@@ -135,10 +135,10 @@ rule Merge:
 	shell: """
 	############################
 	newlib=`echo {params.name} |sed -e 's/~/_/g'`
-	R1=`find {wildcards.run}/Unaligned_patidar/ -name "${{newlib}}*_R1_*gz*" | tr '\\n' ' '`
-	R2=`find {wildcards.run}/Unaligned_patidar/ -name "${{newlib}}*_R2_*gz*" | tr '\\n' ' '`
+	R1=`find {wildcards.run}/Unaligned/ -name "${{newlib}}*_R1_*gz*" | tr '\\n' ' '`
+	R2=`find {wildcards.run}/Unaligned/ -name "${{newlib}}*_R2_*gz*" | tr '\\n' ' '`
 
-	count=`find {wildcards.run}/Unaligned_patidar/ -name "{wildcards.library}*_R1_*gz*" |wc -l`
+	count=`find {wildcards.run}/Unaligned/ -name "{wildcards.library}*_R1_*gz*" |wc -l`
 	if [ ${{count}} >1 ]; then
 		echo "Working on ${{R1}}"
 		/bin/zcat ${{R1}} |gzip >{output.R1} &
@@ -158,7 +158,7 @@ rule BCL2FASTQ:
 	input:
 		"{run}/RTAComplete.txt"
 	output:
-		"{run}/Unaligned_patidar/Reports/html/tree.html"
+		"{run}/Unaligned/Reports/html/tree.html"
 	params:
 		rulename = "bcl2fastq",
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=72gb,ncpus=16"
@@ -170,7 +170,7 @@ rule BCL2FASTQ:
 		cp {wildcards.run}/SampleSheet.csv {wildcards.run}/SampleSheet_ori.csv
 		sed -i 's/~/_/g' {wildcards.run}/SampleSheet.csv
 	fi
-	bcl2fastq -R {wildcards.run} -o {wildcards.run}/Unaligned_patidar/
-	chgrp -R "nci-frederick pcc all users" {wildcards.run}/Unaligned_patidar/
+	bcl2fastq -R {wildcards.run} -o {wildcards.run}/Unaligned/
+	chgrp -R "nci-frederick pcc all users" {wildcards.run}/Unaligned/
 	############################
 	"""
