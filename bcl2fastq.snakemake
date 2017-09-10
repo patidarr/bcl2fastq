@@ -93,7 +93,7 @@ rule Final:
 		batch    = "-l nodes=1,cput=100:00:00,pvmem=5gb,ncpus=3"
 	shell: """
 	############################
-	{SOURCE}/makeReport.pl /projects/lihc_hiseq/static/ {FCID}/Unaligned {FCName} |mutt -e "my_hdr Content-Type: text/html" -s "bcl2fastq status on {FCID}" patidarr@mail.nih.gov 
+	{SOURCE}/makeReport.pl /projects/lihc_hiseq/static/ {FCID}/Unaligned {FCName} |mutt -e "my_hdr Content-Type: text/html" -s "bcl2fastq status on {FCID}" patidarr@mail.nih.gov -c corinne.camalier@nih.gov -c amanda.peach@nih.gov -c dasbiswa@mail.nih.gov -c li.chen2@nih.gov
 	############################
 	"""
 #################################
