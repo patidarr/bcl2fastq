@@ -20,7 +20,11 @@ while(readdir $DH){
 			if (-e "$DIR/$line/Unaligned"){
 				# Already processed or job running.
 			}
-			elsif (-M "$DIR/$line/RTAComplete.txt" <5 and -e "$DIR/$line/SampleSheet.csv"){
+			elsif (-M "$DIR/$line/RTAComplete.txt" <2){
+				if ( ! -e "$DIR/$line/SampleSheet_ori.csv"){
+					`cp $DIR/$line/SampleSheet.csv $DIR/$line/SampleSheet_ori.csv`;
+					`sed -i 's/~/_/g' $DIR/$line/SampleSheet.csv`
+			        }
 				# Make a file we need to check the next time
 				# launch snakemake pipeline to launch bcl2fastq
 				# which should remove this file at the end

@@ -170,10 +170,6 @@ rule BCL2FASTQ:
 	############################
 	module load bcl2fastq2
 	runName=`basename {wildcards.run}`
-	if [ ! -f {wildcards.run}/SampleSheet_ori.csv ]; then
-		cp {wildcards.run}/SampleSheet.csv {wildcards.run}/SampleSheet_ori.csv
-		sed -i 's/~/_/g' {wildcards.run}/SampleSheet.csv
-	fi
 	bcl2fastq -R {wildcards.run} -o {wildcards.run}/Unaligned/
 	chgrp -R "nci-frederick pcc all users" {wildcards.run}/Unaligned/
 	############################

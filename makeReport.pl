@@ -103,6 +103,7 @@ sub getSampleInfo{
 			}
 	}
 	close FH1;
+	unlink $fastq_dir."/".$run_name."/count.txt";
 	$index_distribution_html = "<p> <h2>Reads by Sample</h2>\n<table border=\"1\">\n<tr><th>SampleID</th><th>Sample Name</th><th>PF Clusters</th><th>% of the sample</th></tr>\n";
 	my $total=0;
 	foreach (values %sample_reads_count){
